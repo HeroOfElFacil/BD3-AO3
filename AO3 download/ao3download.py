@@ -8,10 +8,6 @@ import time
 import os
 import sys
 
-fandoms_sorted = pd.read_csv('ao3_band_fic_count.csv', sep=';')
-fandoms_sorted.drop(index=6).reset_index(drop=True).to_csv('ao3_band_fic_count_update.csv',sep=';', index = False)
-top10 = pd.read_csv('ao3_band_fic_count_update.csv', sep=';')
-bands = top10.iloc[1:, 0]
 def get_page_data(search):
 
     data_single = pd.DataFrame(columns=['id', 'date_updated', 'bookmarks', 'nchapters', 'complete', 'comments', 'hits', 'kudos', 'language', 'rating', 'status', 'summary', 'title', 'words'])
@@ -37,11 +33,40 @@ def get_page_data(search):
                 data_multi = data_multi.append(meta_dict, ignore_index=True)
     return data_single, data_multi
 
-with open('pass.txt', 'r') as file:
-    password = file.read()
-
-
+bands = pd.read_csv('ao3_band_fic_count_update.csv', sep=';')
+bts = '방탄소년단 | Bangtan Boys | BTS'
+bands = bands.iloc[1:, 0]
 sess = AO3.GuestSession()
+
+#part 1
+search = AO3.Search(fandoms=bts, any_field='sort:>updated', revised_at='<2020-01-01', session=sess)
+search.update()
+print(search.total_results)
+print(search.pages)
+data_single = pd.DataFrame(columns=['id', 'date_updated', 'bookmarks', 'nchapters', 'complete', 'comments', 'hits', 'kudos', 'language', 'rating', 'status', 'summary', 'title', 'words'])
+data_multi = pd.DataFrame(columns=['id', 'meta_name', 'meta_val'])
+data_single.to_csv('ao3_band_fic_metadata_part1.csv', sep=';', index = False, mode='a')
+data_multi.to_csv('ao3_band_tag_metadata_part1.csv', sep=';', index = False, mode='a')
+
+for i in trange(1, search.pages+1):
+    search.page = i
+    wait_time = 0
+    while True:
+        try:
+            search.update()
+            sys.stdout.write('\r                                                           ')
+            break
+        except Exception:
+            wait_time+=15
+            sys.stdout.write(f'\r Waiting for page {i}... {wait_time}s                     ')
+            time.sleep(15)
+    page_single, page_multi = get_page_data(search)
+    page_single.to_csv('ao3_band_fic_metadata_part1.csv', sep=';', index = False, mode='a', header=False)
+    page_multi.to_csv('ao3_band_tag_metadata_part1.csv', sep=';', index = False, mode='a', header=False)
+#     data_single = data_single.append(page_single, ignore_index=True)
+#     data_multi = data_multi.append(page_multi, ignore_index=True)
+
+#part 2
 search = AO3.Search(fandoms=bts, any_field='sort:>updated', revised_at='>2020-01-01', session=sess)
 search.update()
 print(search.total_results)
@@ -68,6 +93,8 @@ for i in trange(1, search.pages+1):
     page_multi.to_csv('ao3_band_tag_metadata_part2.csv', sep=';', index = False, mode='a', header=False)
 #     data_single = data_single.append(page_single, ignore_index=True)
 #     data_multi = data_multi.append(page_multi, ignore_index=True)
+
+#part 3
 data_single = pd.DataFrame(columns=['id', 'date_updated', 'bookmarks', 'nchapters', 'complete', 'comments', 'hits', 'kudos', 'language', 'rating', 'status', 'summary', 'title', 'words'])
 data_multi = pd.DataFrame(columns=['id', 'meta_name', 'meta_val'])
 data_single.to_csv('ao3_band_fic_metadata_part3.csv', sep=';', index = False, mode='a')
@@ -95,6 +122,7 @@ for j, band in enumerate(bands):
         page_single.to_csv('ao3_band_fic_metadata_part3.csv', sep=';', index = False, mode='a', header=False)
         page_multi.to_csv('ao3_band_tag_metadata_part3.csv', sep=';', index = False, mode='a', header=False)
 
+# mergr
 fic1 = pd.read_csv('ao3_band_fic_metadata_part1.csv', sep=';')
 tag1 = pd.read_csv('ao3_band_tag_metadata_part1.csv', sep=';')
 fic2 = pd.read_csv('ao3_band_fic_metadata_part2.csv', sep=';')
@@ -108,5 +136,26 @@ tag1 = tag1.append(tag3, ignore_index=True)
 fic1 = fic1.sort_values(by='date_updated', ascending=True)
 fic1 = fic1.drop_duplicates(subset=['id'], keep='last', ignore_index=True)
 tag1 = tag1.drop_duplicates(ignore_index=True)
-fic1.to_csv('ao3_band_fic_metadata_clean.csv', sep=';', index = False)
-tag1.to_csv('ao3_band_tag_metadata_clean.csv', sep=';', index = False)
+fic = fic1
+tag = tag1
+
+#cleaning
+fic = fic.replace(to_replace='\n', value='', regex=True)
+fic = fic.replace(to_replace='\\', value='', regex=True)
+fic = fic.replace(to_replace=';', value=':', regex=True)
+fic = fic.replace(to_replace='"', value='\'', regex=True)
+tag = tag.replace(to_replace='\n', value='', regex=True)
+tag = tag.replace(to_replace='\\', value='', regex=True)
+tag = tag.replace(to_replace=';', value=':', regex=True)
+tag = tag.replace(to_replace='"', value='\'', regex=True)
+fic = fic.fillna('N//A')
+
+#unifikacja fandomow
+fandom_string = ['bts', 'one direction', 'nct', 'exo', 'stray kids', 'seventeen', 'got7', 'ateez', 'my chemical romance', 'monsta x', '1d', '1 d', 'one d', 'mcr']
+fandom_new = ["BTS", "One Direction", "NCT 127", "EXO", "Stray Kids", "SEVENTEEN", "GOT7", "ATEEZ", "My Chemical Romance", "Monsta X", 'One Direction', 'One Direction', 'One Direction', 'My Chemical Romance']
+for i in tqdm(range(len(fandom_new))):
+    tag.loc[(tag['meta_name']=='fandoms') & (tag['meta_val'].str.contains(fandom_string[i], na=False, case=False)), 'meta_val'] = fandom_new[i]
+
+#save
+fic.to_csv('ao3_band_fic_metadata_clean.csv', sep=';', index = False)
+tag.to_csv('ao3_band_tag_metadata_clean.csv', sep=';', index = False)
