@@ -1,6 +1,6 @@
 import happybase
 
-host = '192.168.137.182'
+host = '192.168.137.177'
 port = '50070'
 user_name = 'vagrant'
 
@@ -18,7 +18,7 @@ for tablename in spotify:
     )
 
 connection.create_table(
-    'fic_meta',
+    'ao3_band_fic_metadata_clean',
     {
         '_id': dict(), #id, title, summary, language
         '_status': dict(), #date_updated, status, n_chapters, complete, words
@@ -27,7 +27,7 @@ connection.create_table(
 )
 
 connection.create_table(
-    'tag_meta',
+    'ao3_band_tag_metadata_clean',
     {
         'tag_meta': dict()
     }
