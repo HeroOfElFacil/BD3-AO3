@@ -13,6 +13,7 @@ rows_bands = []
 rows_genres = []
 rows_albums = []
 for band in bands_list:
+    print(f'Downloading {band}...')
     band = band.replace("(Band)", "")
     band = band.strip()
     band_dict = sp.search(q="artist:{}".format(band), type="artist")['artists']['items'][0]
@@ -24,6 +25,7 @@ for band in bands_list:
     rows_bands.append({'BandName': band_dict['name'], 
                        'Popularity': band_dict['popularity'], 
                        'Followers': band_dict['followers']['total']})
+    print(f'Done!')
     
 bands_output = pd.DataFrame(rows_bands)
 genres_output = pd.DataFrame(rows_genres)
@@ -31,3 +33,4 @@ albums_output = pd.DataFrame(rows_albums).drop_duplicates(subset=['BandName', 'A
 bands_output.to_csv('/home/vagrant/nifi/bands.csv', index=False, sep=';')
 genres_output.to_csv('/home/vagrant/nifi/genres.csv', index=False, sep=';')
 albums_output.to_csv('/home/vagrant/nifi/albums.csv', index=False, sep=';')
+print('All done!')
